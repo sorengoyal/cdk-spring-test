@@ -4,41 +4,28 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as path from "path";
+import * as fs from "fs";
 
 export class CdkSpringService extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
-
-//   const bundlingOptions = {
-//     bundling: {
-//         image: lambda.Runtime.JAVA_17.bundlingImage,
-//                 command: [
-//                     "/bin/sh",
-//                     "-c",
-//                     ["cd /asset-input/ ",
-//                         "./mvnw clean package -P lambda -DskipTests ",
-//                         "cp /asset-input/target/spring-petclinic-rest-2.4.2-aws.jar /asset-output/"].join(" && ")
-//                 ],
-//                 outputType: BundlingOutput.ARCHIVED,
-//                 user: 'root',
-//                 volumes: [{hostPath: `${homedir()}/.m2`, containerPath: '/root/.m2/'}]
-//             }
-//         };
     const envVariables = {
                 'VARIABLE_NAME': `VARIABLE_VALUE`
             }
-
+    const root_dir = path.join(__dirname, '../../');
+    const buildGradle_content = fs.readFileSync(path.join(root_dir, 'build.gradle'), 'utf-8');
+    const version = buildGradle_content.match(/version\s*=\s*['"]([^'"]*)['"]/)?.[1];
+    if (!version) {
+        console.log('Version not found');
+        process.exit();
+    }
+    const jar_name = 'cdkspringapp-'.concat(version).concat('-aws.jar');
     const baseProps = {
-//         vpc: props?.vpc,
         runtime: lambda.Runtime.JAVA_17,
-        code: lambda.Code.fromAsset(path.join(__dirname, '../../build/libs/cdkspringapp-0.0.2-SNAPSHOT-aws.jar')),
+        code: lambda.Code.fromAsset(path.join(root_dir, 'build/libs/'.concat(jar_name))),
         handler: 'org.springframework.cloud.function.adapter.aws.FunctionInvoker',
-//         vpcSubnets: {
-//             subnetType: ec2.SubnetType.PRIVATE
-//         },
         memorySize: 512,
         timeout: cdk.Duration.seconds(15),
-//         securityGroups: [lambdaSecurityGroup]
         }
     const bucket = new s3.Bucket(this, "RigelStore");
 
